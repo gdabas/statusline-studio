@@ -221,8 +221,7 @@
   </div>
 
   <div class="actions">
-    <button class="tbtn" id="shotBtn" title="copy (or download) a PNG of the current bar for Claude to verify against">📸 screenshot</button>
-    <button class="tbtn primary" id="copyBtn" title="copy full build instructions for Claude Code">copy for Claude</button>
+    <button class="tbtn primary" id="copyBtn" title="copy the build spec to your clipboard and save the target screenshot to Downloads">copy for Claude</button>
     <div class="sfoot">
       <a href="index.html">about</a><span>·</span>
       <a href="https://github.com/gdabas/statusline-studio">GitHub</a><span>·</span>
@@ -895,30 +894,25 @@ function buildInstructions(){
   L.push("- Keep the script fast (<300ms): cache slow commands (git counts, weather, streaks) in ${TMPDIR}-based files with sensible TTLs.");
   L.push("- Segments that would be empty are skipped, not left as blank gaps.");
   L.push("");
-  L.push("A PNG screenshot of the exact target rendering is on the clipboard alongside this text (if pasting only inserted this text, paste once more to get the image; otherwise use statusline-target.png from ~/Downloads). After building, run the script with sample JSON, compare your output to the screenshot (order, glyphs, colors, row breaks), and iterate until it matches.");
+  L.push("A PNG of the exact target rendering was saved to my Downloads folder as statusline-target.png (newest one if several exist) — read that image file. After building, run the script with sample JSON, compare your output to the screenshot (order, glyphs, colors, row breaks), and iterate until it matches.");
   return L.join("\n");
 }
-$("copyBtn").onclick=async()=>{
+/* one click: spec text -> clipboard (text always pastes cleanly),
+   target screenshot -> ~/Downloads (Claude Code reads the file itself).
+   A combined text+image clipboard write doesn't work in practice: paste
+   targets pick ONE representation, and the image always wins. */
+$("copyBtn").onclick=()=>{
   const txt=buildInstructions();
   if(!selected.some(t=>!t.startsWith("br#"))){copyText(txt);return;}
-  const png=await new Promise(r=>{try{barCanvas().toBlob(r,"image/png");}catch(e){r(null);}});
-  /* one clipboard write carrying BOTH the spec text and the target screenshot */
-  if(png&&navigator.clipboard&&window.ClipboardItem){
-    try{
-      await navigator.clipboard.write([new ClipboardItem({
-        "text/plain":new Blob([txt],{type:"text/plain"}),
-        "image/png":png
-      })]);
-      toast("Spec + screenshot copied — paste into Claude Code (paste twice: image, then text)");
-      return;
-    }catch(e){}
-  }
-  copyText(txt);
-  if(png){
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(png);a.download="statusline-target.png";a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-  }
+  copyText(txt,"Spec copied — screenshot saved to Downloads");
+  try{
+    barCanvas().toBlob(blob=>{
+      if(!blob)return;
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);a.download="statusline-target.png";a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    },"image/png");
+  }catch(e){}
 };
 
 /* ---------- screenshot of the simulated bar ---------- */
@@ -955,26 +949,12 @@ function barCanvas(){
   });
   return cv;
 }
-$("shotBtn").onclick=()=>{
-  if(!selected.some(t=>!t.startsWith("br#"))){toast("Select some segments first");return;}
-  barCanvas().toBlob(async blob=>{
-    if(!blob){toast("Screenshot failed");return;}
-    try{
-      await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
-      toast("Screenshot copied — paste it to Claude");
-    }catch(e){
-      const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob);a.download="statusline-target.png";a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-      toast("Saved statusline-target.png");
-    }
-  },"image/png");
-};
 function toast(msg){
   const t=$("toast");t.textContent=msg;t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"),1600);
 }
-function copyText(txt){
+function copyText(txt,msg){
+  msg=msg||"Copied";
   const legacy=()=>{
     const ta=document.createElement("textarea");
     ta.value=txt;ta.setAttribute("readonly","");
@@ -982,11 +962,11 @@ function copyText(txt){
     document.body.appendChild(ta);ta.focus();ta.select();
     let ok=false;try{ok=document.execCommand("copy");}catch(e){}
     ta.remove();
-    if(ok)toast("Copied");
+    if(ok)toast(msg);
     else{$("copyPanel").hidden=false;const p=$("copyTa");p.value=txt;p.focus();p.select();}
   };
   if(navigator.clipboard&&window.isSecureContext)
-    navigator.clipboard.writeText(txt).then(()=>toast("Copied")).catch(legacy);
+    navigator.clipboard.writeText(txt).then(()=>toast(msg)).catch(legacy);
   else legacy();
 }
 $("copyClose").onclick=()=>{$("copyPanel").hidden=true;};

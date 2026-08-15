@@ -14,13 +14,13 @@ build spec plus a screenshot so it can build and *verify* the real thing.
 1. **Compose** — open `studio.html`, click cards to add segments, drag to reorder, hit
    `⏎ new line` for multi-row bars. A live ticker fakes a running session so you can watch
    threshold colors flip green → yellow → red before committing to a design.
-2. **Copy for Claude** — the `copy for Claude` button produces a precise spec: every row,
-   every segment's data source (stdin JSON path, shell command, or `gh` call), example
-   rendering, exact 24-bit truecolor hex, conditional-visibility rules, and caching guidance.
-   The `📸 screenshot` button captures the simulated bar as a PNG (`statusline-target.png`).
-3. **Paste & verify** — paste both into Claude Code. Claude writes `~/.claude/statusline.sh`,
-   wires up `settings.json`, runs the script against sample JSON, and compares its output to
-   your screenshot until they match.
+2. **Copy for Claude** — one click puts a precise spec on your clipboard (every row, every
+   segment's data source — stdin JSON path, shell command, or `gh` call — example rendering,
+   exact 24-bit truecolor hex, conditional-visibility rules, caching guidance) and saves the
+   target rendering to your Downloads as `statusline-target.png`.
+3. **Paste & verify** — paste into Claude Code. Claude writes `~/.claude/statusline.sh`,
+   wires up `settings.json`, runs the script against sample JSON, then reads the saved
+   screenshot and compares its output against it until they match.
 
 ## Running it
 

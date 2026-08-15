@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Statusline Studio</title>
 <meta name="description" content="Design your Claude Code status line visually, then hand Claude the spec and a screenshot to build it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   /* single-theme dark app — deliberate: this is a terminal instrument panel */
   :root{
@@ -16,18 +19,31 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font:14px/1.5 "IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
     -webkit-font-smoothing:antialiased}
   button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
-  /* ---------- top bar ---------- */
-  .topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:9px;
-    padding:10px 20px;background:rgba(16,14,11,.92);backdrop-filter:blur(8px);
-    border-bottom:1px solid var(--line)}
-  .logo{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-weight:700;font-size:15px;
-    letter-spacing:-.01em;white-space:nowrap}
+  /* ---------- app shell: sidebar + main ---------- */
+  .app{display:flex;min-height:100vh}
+  .side{width:242px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;
+    display:flex;flex-direction:column;gap:20px;padding:16px 14px 18px;
+    background:var(--panel);border-right:1px solid var(--line);z-index:60}
+  .main{flex:1;min-width:0}
+  .logo{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;font-weight:700;font-size:15px;
+    letter-spacing:-.01em;white-space:nowrap;padding:2px 4px}
   .logo .p{color:var(--accent)}
-  .tb-spacer{flex:1}
+  .sgroup{display:flex;flex-direction:column;gap:5px}
+  .slabel{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+    font-weight:700;padding:0 4px;margin-bottom:3px}
+  .fstack{display:flex;flex-direction:column;gap:3px}
+  .side .actions{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:14px;
+    border-top:1px solid var(--line)}
+  .side .tbtn,.side select{width:100%}
+  .side .tbtn{text-align:left}
+  .side .tbtn.primary{text-align:center}
+  .sfoot{display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);padding:2px 4px}
+  .sfoot a{color:var(--muted)}
+  .sfoot a:hover{color:var(--accent)}
   .tbtn{border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;
     color:var(--muted);transition:all .15s;white-space:nowrap}
   .tbtn:hover{color:var(--ink);border-color:var(--line2)}
@@ -39,11 +55,11 @@
   .tbtn.on .livedot{background:var(--grn);animation:pulse 1.6s ease infinite}
   @keyframes pulse{50%{opacity:.35}}
   select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;
-    padding:6px 8px;font:12.5px ui-monospace,"SF Mono",Menlo,monospace}
+    padding:6px 8px;font:12.5px "JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
   select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 
   /* ---------- sticky simulation ---------- */
-  .stage{position:sticky;top:53px;z-index:50;background:var(--bg);
+  .stage{position:sticky;top:0;z-index:50;background:var(--bg);
     padding:14px 20px 10px;border-bottom:1px solid var(--line)}
   .stage-inner{max-width:1160px;margin:0 auto}
   .term{background:var(--t-bg);border:1px solid var(--t-line);border-radius:12px;
@@ -53,8 +69,8 @@
   .dot{width:11px;height:11px;border-radius:50%}
   .dot.r{background:var(--red)}.dot.y{background:var(--yel)}.dot.g{background:var(--grn)}
   .term-title{margin-left:8px;color:var(--t-dim);font-size:12px;
-    font-family:ui-monospace,"SF Mono",Menlo,monospace}
-  .term-body{padding:12px 16px 11px;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+  .term-body{padding:12px 16px 11px;font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
     font-size:13px;line-height:1.7;overflow-x:auto}
   .term-body .dim{color:var(--t-dim)}
   .convo{white-space:pre;min-width:max-content}
@@ -84,18 +100,15 @@
   .barmeta .warn{color:var(--red);font-weight:600}
   .barmeta .tip{margin-left:auto}
 
-  /* ---------- filters & presets ---------- */
-  .toolrow{max-width:1160px;margin:18px auto 4px;padding:0 20px;display:flex;flex-wrap:wrap;
-    gap:8px;align-items:center}
-  .fchip{border:1px solid var(--line);border-radius:999px;padding:5px 13px;font-size:12.5px;
-    color:var(--muted);transition:all .15s}
-  .fchip:hover{color:var(--ink);border-color:var(--line2)}
+  /* ---------- sidebar filters & presets ---------- */
+  .fchip{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+    border:1px solid transparent;border-radius:8px;padding:6px 10px;font-size:12.5px;
+    color:var(--muted);text-align:left;transition:all .15s}
+  .fchip:hover{color:var(--ink);background:var(--panel2)}
   .fchip.on{background:var(--panel2);color:var(--accent);border-color:var(--accent)}
-  .fchip .n{opacity:.6;font-size:11px;margin-left:4px;font-family:ui-monospace,monospace}
-  .packs{max-width:1160px;margin:6px auto 0;padding:0 20px;display:flex;flex-wrap:wrap;gap:8px;
-    align-items:center;color:var(--muted);font-size:12px}
-  .pack{border:1px dashed var(--line2);border-radius:8px;padding:4px 11px;font-size:12px;
-    color:var(--muted)}
+  .fchip .n{opacity:.6;font-size:11px;font-family:"JetBrains Mono",ui-monospace,monospace}
+  .pack{width:100%;text-align:left;border:1px dashed var(--line2);border-radius:8px;
+    padding:5px 10px;font-size:12px;color:var(--muted);transition:all .15s}
   .pack:hover{color:var(--accent);border-color:var(--accent)}
 
   /* ---------- card grid ---------- */
@@ -111,7 +124,7 @@
     background:var(--grn);color:#0B0A07;display:grid;place-items:center;font-size:12px;
     font-weight:800;opacity:0;transform:scale(.5);transition:all .18s ease;pointer-events:none}
   .chip{align-self:flex-start;max-width:100%;background:var(--t-bg);border:1px solid var(--t-line);
-    border-radius:8px;padding:6px 12px;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    border-radius:8px;padding:6px 12px;font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
     font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chip.ghost{opacity:.45}
   .crow{display:flex;align-items:center;gap:8px;justify-content:space-between}
@@ -124,7 +137,7 @@
   .b-derived{background:rgba(79,196,206,.14);color:var(--cyn)}
   .b-idea{background:rgba(229,138,100,.16);color:var(--org)}
   .cdesc{font-size:12px;color:var(--muted);line-height:1.45;flex:1}
-  .csrc{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--muted);
+  .csrc{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--muted);
     opacity:.75;word-break:break-all;line-height:1.4;border-top:1px solid var(--line);
     padding-top:7px}
   .cathead{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin:14px 0 2px}
@@ -140,7 +153,7 @@
   .copypanel .box p{margin:0 0 10px;font-size:13px;color:var(--muted)}
   .copypanel textarea{width:100%;height:110px;background:var(--t-bg);color:var(--ink);
     border:1px solid var(--t-line);border-radius:8px;padding:10px;resize:vertical;
-    font:12.5px/1.5 ui-monospace,"SF Mono",Menlo,monospace}
+    font:12.5px/1.5 "JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
   .copypanel .row{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);
     background:var(--ink);color:var(--bg);border-radius:8px;padding:8px 16px;font-size:13px;
@@ -148,30 +161,65 @@
   .toast.show{transform:translateX(-50%) translateY(0)}
 
   @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
-  @media (max-width:680px){
+  @media (max-width:880px){
+    .app{display:block}
+    .side{position:static;width:auto;height:auto;overflow:visible;flex-direction:row;
+      flex-wrap:wrap;align-items:flex-start;border-right:none;
+      border-bottom:1px solid var(--line);gap:14px}
+    .sgroup{min-width:150px;flex:1}
+    .side .actions{margin-top:0;border-top:none;padding-top:0;min-width:170px;flex:1}
     .stage{position:static}
-    .topbar{flex-wrap:wrap}
     .term-body{font-size:11.5px}
   }
 </style>
 </head>
 <body>
 
-<div class="topbar">
+<div class="app">
+<aside class="side">
   <span class="logo"><span class="p">▸</span> statusline<span class="p">.</span>studio</span>
-  <span class="tb-spacer"></span>
-  <button class="tbtn on" id="liveBtn" aria-pressed="true"><span class="livedot"></span>live</button>
-  <button class="tbtn" id="shuffleBtn" title="randomize the fake session">🎲 shuffle</button>
-  <select id="sepSel" title="separator">
-    <option value=" │ ">│</option><option value=" | ">|</option><option value="  ">␣</option>
-    <option value=" · ">·</option><option value=" • ">•</option><option value=" ⟩ ">⟩</option>
-  </select>
-  <button class="tbtn" id="brBtn" title="start a new line — status lines can be multiple rows">⏎ new line</button>
-  <button class="tbtn on" id="colorBtn" aria-pressed="true">colors</button>
-  <button class="tbtn" id="shotBtn" title="copy (or download) a PNG of the current bar for Claude to verify against">📸 screenshot</button>
-  <button class="tbtn primary" id="copyBtn" title="copy full build instructions for Claude Code">copy for Claude</button>
-</div>
 
+  <div class="sgroup">
+    <span class="slabel">categories</span>
+    <div class="fstack" id="filters"></div>
+  </div>
+
+  <div class="sgroup">
+    <span class="slabel">starter packs</span>
+    <button class="pack" data-pack="minimal">minimal</button>
+    <button class="pack" data-pack="essentials">essentials</button>
+    <button class="pack" data-pack="git">git head-up</button>
+    <button class="pack" data-pack="ops">ops cockpit</button>
+    <button class="pack" data-pack="twoline">two-line deluxe</button>
+    <button class="pack" data-pack="fun">fun mode</button>
+    <button class="pack" data-pack="clear">clear all</button>
+  </div>
+
+  <div class="sgroup">
+    <span class="slabel">bar options</span>
+    <button class="tbtn on" id="liveBtn" aria-pressed="true"><span class="livedot"></span>live session</button>
+    <button class="tbtn" id="shuffleBtn" title="randomize the fake session">🎲 shuffle data</button>
+    <select id="sepSel" title="separator">
+      <option value=" │ ">separator │</option><option value=" | ">separator |</option>
+      <option value="  ">separator ␣</option><option value=" · ">separator ·</option>
+      <option value=" • ">separator •</option><option value=" ⟩ ">separator ⟩</option>
+    </select>
+    <button class="tbtn" id="brBtn" title="start a new line — status lines can be multiple rows">⏎ new line</button>
+    <button class="tbtn on" id="colorBtn" aria-pressed="true">ANSI colors</button>
+  </div>
+
+  <div class="actions">
+    <button class="tbtn" id="shotBtn" title="copy (or download) a PNG of the current bar for Claude to verify against">📸 screenshot</button>
+    <button class="tbtn primary" id="copyBtn" title="copy full build instructions for Claude Code">copy for Claude</button>
+    <div class="sfoot">
+      <a href="index.html">about</a><span>·</span>
+      <a href="https://github.com/gdabas/statusline-studio">GitHub</a><span>·</span>
+      <span>Apache-2.0</span>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
 <div class="stage"><div class="stage-inner">
   <div class="term">
     <div class="term-bar">
@@ -194,27 +242,10 @@
   </div>
 </div></div>
 
-<div class="toolrow" id="filters"></div>
-<div class="packs">
-  <span>starter packs:</span>
-  <button class="pack" data-pack="minimal">minimal</button>
-  <button class="pack" data-pack="essentials">essentials</button>
-  <button class="pack" data-pack="git">git head-up</button>
-  <button class="pack" data-pack="ops">ops cockpit</button>
-  <button class="pack" data-pack="twoline">two-line deluxe</button>
-  <button class="pack" data-pack="fun">fun mode</button>
-  <button class="pack" data-pack="clear">clear all</button>
-</div>
-
 <div class="gridwrap"><div class="grid" id="grid"></div></div>
 
-<footer style="max-width:1160px;margin:0 auto;padding:0 20px 40px;color:var(--muted);
-  font-size:12.5px;display:flex;gap:14px;flex-wrap:wrap">
-  <span>Statusline Studio</span><span>·</span>
-  <a href="index.html" style="color:var(--accent)">about</a><span>·</span>
-  <a href="https://github.com/gdabas/statusline-studio" style="color:var(--accent)">GitHub</a>
-  <span>·</span><span>Apache-2.0</span>
-</footer>
+</main>
+</div>
 
 <div class="copypanel" id="copyPanel" hidden>
   <div class="box">

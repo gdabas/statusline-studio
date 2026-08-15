@@ -1,0 +1,905 @@
+<title>Statusline Studio</title>
+<style>
+  /* single-theme dark app — deliberate: this is a terminal instrument panel */
+  :root{
+    --bg:#100E0B; --panel:#181510; --panel2:#1F1B14; --line:#2B261D; --line2:#3A3327;
+    --ink:#ECE5D8; --muted:#9A8F7C; --accent:#E58A64; --accent-ink:#1A120D;
+    --t-bg:#0B0A07; --t-line:#262119; --t-dim:#847B69;
+    --grn:#5DC26E; --yel:#D9A43B; --red:#E5654F; --cyn:#4FC4CE; --mag:#C79BF2; --blu:#6CA9F0; --org:#E58A64;
+    --shadow:0 2px 6px rgba(0,0,0,.4),0 14px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+  /* ---------- top bar ---------- */
+  .topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:9px;
+    padding:10px 20px;background:rgba(16,14,11,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line)}
+  .logo{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-weight:700;font-size:15px;
+    letter-spacing:-.01em;white-space:nowrap}
+  .logo .p{color:var(--accent)}
+  .tb-spacer{flex:1}
+  .tbtn{border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;
+    color:var(--muted);transition:all .15s;white-space:nowrap}
+  .tbtn:hover{color:var(--ink);border-color:var(--line2)}
+  .tbtn.on{color:var(--accent);border-color:var(--accent)}
+  .tbtn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+  .tbtn.primary:hover{filter:brightness(1.08)}
+  .livedot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);
+    margin-right:6px;vertical-align:1px}
+  .tbtn.on .livedot{background:var(--grn);animation:pulse 1.6s ease infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:6px 8px;font:12.5px ui-monospace,"SF Mono",Menlo,monospace}
+  select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  /* ---------- sticky simulation ---------- */
+  .stage{position:sticky;top:53px;z-index:50;background:var(--bg);
+    padding:14px 20px 10px;border-bottom:1px solid var(--line)}
+  .stage-inner{max-width:1160px;margin:0 auto}
+  .term{background:var(--t-bg);border:1px solid var(--t-line);border-radius:12px;
+    overflow:hidden;box-shadow:var(--shadow)}
+  .term-bar{display:flex;align-items:center;gap:7px;padding:9px 13px;
+    background:var(--panel);border-bottom:1px solid var(--t-line)}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:var(--red)}.dot.y{background:var(--yel)}.dot.g{background:var(--grn)}
+  .term-title{margin-left:8px;color:var(--t-dim);font-size:12px;
+    font-family:ui-monospace,"SF Mono",Menlo,monospace}
+  .term-body{padding:12px 16px 11px;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    font-size:13px;line-height:1.7;overflow-x:auto}
+  .term-body .dim{color:var(--t-dim)}
+  .convo{white-space:pre;min-width:max-content}
+  .inputbox{border:1px solid var(--t-line);border-radius:6px;padding:5px 10px;margin:8px 0 7px;
+    white-space:nowrap;min-width:min-content}
+  .caret{display:inline-block;width:7px;height:14px;background:var(--ink);vertical-align:-2px;
+    animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  #statusrow{min-height:24px;padding-top:1px}
+  .sline{white-space:nowrap;min-width:min-content}
+  .seg{display:inline-block;border-radius:4px;padding:0 1px;cursor:grab;transition:background .15s}
+  .seg:hover{background:rgba(229,138,100,.16);text-decoration:line-through;
+    text-decoration-color:var(--red)}
+  .seg.dragging{opacity:.3}
+  .seg.new,.brmark.new{animation:pop .3s ease}
+  .brmark{display:inline-block;color:var(--t-dim);opacity:.7;cursor:grab;border-radius:4px;
+    padding:0 4px;margin-left:6px;font-size:12px}
+  .brmark:hover{background:rgba(229,101,79,.2);color:var(--red)}
+  .empty{color:var(--t-dim);animation:breathe 2.6s ease-in-out infinite}
+  @keyframes pop{0%{transform:translateY(7px) scale(.9);opacity:0}100%{transform:none;opacity:1}}
+  @keyframes breathe{50%{opacity:.4}}
+  .c-grn{color:var(--grn)}.c-yel{color:var(--yel)}.c-red{color:var(--red)}.c-cyn{color:var(--cyn)}
+  .c-mag{color:var(--mag)}.c-blu{color:var(--blu)}.c-org{color:var(--org)}
+  .c-dim{color:var(--t-dim)}.c-def{color:var(--ink)}
+  .barmeta{display:flex;gap:14px;align-items:center;color:var(--muted);font-size:11.5px;
+    margin:7px 4px 0;flex-wrap:wrap}
+  .barmeta .warn{color:var(--red);font-weight:600}
+  .barmeta .tip{margin-left:auto}
+
+  /* ---------- filters & presets ---------- */
+  .toolrow{max-width:1160px;margin:18px auto 4px;padding:0 20px;display:flex;flex-wrap:wrap;
+    gap:8px;align-items:center}
+  .fchip{border:1px solid var(--line);border-radius:999px;padding:5px 13px;font-size:12.5px;
+    color:var(--muted);transition:all .15s}
+  .fchip:hover{color:var(--ink);border-color:var(--line2)}
+  .fchip.on{background:var(--panel2);color:var(--accent);border-color:var(--accent)}
+  .fchip .n{opacity:.6;font-size:11px;margin-left:4px;font-family:ui-monospace,monospace}
+  .packs{max-width:1160px;margin:6px auto 0;padding:0 20px;display:flex;flex-wrap:wrap;gap:8px;
+    align-items:center;color:var(--muted);font-size:12px}
+  .pack{border:1px dashed var(--line2);border-radius:8px;padding:4px 11px;font-size:12px;
+    color:var(--muted)}
+  .pack:hover{color:var(--accent);border-color:var(--accent)}
+
+  /* ---------- card grid ---------- */
+  .gridwrap{max-width:1160px;margin:14px auto 60px;padding:0 20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:11px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    cursor:pointer;position:relative;transition:transform .16s ease,border-color .16s,box-shadow .16s;
+    display:flex;flex-direction:column;padding:12px 13px 12px;gap:8px}
+  .card:hover{transform:translateY(-3px);border-color:var(--line2);box-shadow:var(--shadow)}
+  .card.sel{border-color:var(--grn);box-shadow:0 0 0 1px var(--grn)}
+  .card.sel .check{opacity:1;transform:scale(1)}
+  .check{position:absolute;top:9px;right:9px;width:20px;height:20px;border-radius:50%;
+    background:var(--grn);color:#0B0A07;display:grid;place-items:center;font-size:12px;
+    font-weight:800;opacity:0;transform:scale(.5);transition:all .18s ease;pointer-events:none}
+  .chip{align-self:flex-start;max-width:100%;background:var(--t-bg);border:1px solid var(--t-line);
+    border-radius:8px;padding:6px 12px;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip.ghost{opacity:.45}
+  .crow{display:flex;align-items:center;gap:8px;justify-content:space-between}
+  .cname{font-weight:600;font-size:13px}
+  .badge{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;border-radius:4px;
+    padding:2px 6px;font-weight:700;flex-shrink:0}
+  .b-native{background:var(--panel2);color:var(--muted)}
+  .b-shell{background:rgba(108,169,240,.14);color:var(--blu)}
+  .b-gh{background:rgba(199,155,242,.14);color:var(--mag)}
+  .b-derived{background:rgba(79,196,206,.14);color:var(--cyn)}
+  .b-idea{background:rgba(229,138,100,.16);color:var(--org)}
+  .cdesc{font-size:12px;color:var(--muted);line-height:1.45;flex:1}
+  .csrc{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--muted);
+    opacity:.75;word-break:break-all;line-height:1.4;border-top:1px solid var(--line);
+    padding-top:7px}
+  .cathead{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin:14px 0 2px}
+  .cathead h3{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--muted);font-weight:700}
+  .cathead .rule{flex:1;height:1px;background:var(--line)}
+
+  .copypanel{position:fixed;inset:0;z-index:98;background:rgba(11,10,7,.7);display:grid;
+    place-items:center;padding:20px}
+  .copypanel[hidden]{display:none}
+  .copypanel .box{background:var(--panel);border:1px solid var(--line2);border-radius:12px;
+    padding:16px;max-width:640px;width:100%;box-shadow:var(--shadow)}
+  .copypanel .box p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+  .copypanel textarea{width:100%;height:110px;background:var(--t-bg);color:var(--ink);
+    border:1px solid var(--t-line);border-radius:8px;padding:10px;resize:vertical;
+    font:12.5px/1.5 ui-monospace,"SF Mono",Menlo,monospace}
+  .copypanel .row{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);
+    background:var(--ink);color:var(--bg);border-radius:8px;padding:8px 16px;font-size:13px;
+    transition:transform .25s ease;z-index:99;pointer-events:none}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+  @media (max-width:680px){
+    .stage{position:static}
+    .topbar{flex-wrap:wrap}
+    .term-body{font-size:11.5px}
+  }
+</style>
+
+<div class="topbar">
+  <span class="logo"><span class="p">▸</span> statusline<span class="p">.</span>studio</span>
+  <span class="tb-spacer"></span>
+  <button class="tbtn on" id="liveBtn" aria-pressed="true"><span class="livedot"></span>live</button>
+  <button class="tbtn" id="shuffleBtn" title="randomize the fake session">🎲 shuffle</button>
+  <select id="sepSel" title="separator">
+    <option value=" │ ">│</option><option value=" | ">|</option><option value="  ">␣</option>
+    <option value=" · ">·</option><option value=" • ">•</option><option value=" ⟩ ">⟩</option>
+  </select>
+  <button class="tbtn" id="brBtn" title="start a new line — status lines can be multiple rows">⏎ new line</button>
+  <button class="tbtn on" id="colorBtn" aria-pressed="true">colors</button>
+  <button class="tbtn" id="shotBtn" title="copy (or download) a PNG of the current bar for Claude to verify against">📸 screenshot</button>
+  <button class="tbtn primary" id="copyBtn" title="copy full build instructions for Claude Code">copy for Claude</button>
+</div>
+
+<div class="stage"><div class="stage-inner">
+  <div class="term">
+    <div class="term-bar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="term-title" id="termTitle">claude — acme-app</span>
+    </div>
+    <div class="term-body">
+      <div class="convo dim">❯ claude
+<span class="c-org">✳</span> <span class="c-def">Resuming session…</span>
+<span class="c-def">&gt; make the auth test less flaky</span>
+<span class="c-org">⏺</span> Found the race in test/auth.spec.ts — fixing it now.</div>
+      <div class="inputbox"><span class="dim">❯ </span><span class="caret"></span></div>
+      <div id="statusrow"></div>
+    </div>
+  </div>
+  <div class="barmeta">
+    <span id="barStats"></span>
+    <span id="barWarn" class="warn" hidden>⚠ a row is over ~80 chars — may truncate</span>
+    <span class="tip">drag to reorder · click a segment (or ⏎) to remove</span>
+  </div>
+</div></div>
+
+<div class="toolrow" id="filters"></div>
+<div class="packs">
+  <span>starter packs:</span>
+  <button class="pack" data-pack="minimal">minimal</button>
+  <button class="pack" data-pack="essentials">essentials</button>
+  <button class="pack" data-pack="git">git head-up</button>
+  <button class="pack" data-pack="ops">ops cockpit</button>
+  <button class="pack" data-pack="twoline">two-line deluxe</button>
+  <button class="pack" data-pack="fun">fun mode</button>
+  <button class="pack" data-pack="clear">clear all</button>
+</div>
+
+<div class="gridwrap"><div class="grid" id="grid"></div></div>
+
+<footer style="max-width:1160px;margin:0 auto;padding:0 20px 40px;color:var(--muted);
+  font-size:12.5px;display:flex;gap:14px;flex-wrap:wrap">
+  <span>Statusline Studio</span><span>·</span>
+  <a href="index.html" style="color:var(--accent)">about</a><span>·</span>
+  <a href="https://github.com/YOUR-USERNAME/statusline-studio" style="color:var(--accent)">GitHub</a>
+  <span>·</span><span>Apache-2.0</span>
+</footer>
+
+<div class="copypanel" id="copyPanel" hidden>
+  <div class="box">
+    <p>Clipboard access is blocked in this view — the text below is already selected, press <b>⌘C</b> to copy it.</p>
+    <textarea id="copyTa" readonly spellcheck="false"></textarea>
+    <div class="row"><button class="tbtn" id="copyClose">done</button></div>
+  </div>
+</div>
+<div class="toast" id="toast">Copied</div>
+
+<script>
+"use strict";
+/* ================= fake session ================= */
+const sim = {
+  model:"Fable 5", ctx:34, cost:0.42, dur:47, la:156, lr:23, rl5:24, rl7:41,
+  branch:"feat/statusline", dirty:3, ahead:2, behind:1, stash:1,
+  hash:"a3f9c21", age:12, vim:"NORMAL", effort:"high", think:true, fast:false,
+  style:"default", sessionName:"statusline-lab", agent:"reviewer", version:"2.1.90",
+  cwd:"~/Projects/acme-app", win:200000,
+  prN:1234, prState:"pending", checksPass:2, checksTotal:3, issues:4,
+  node:"22.6.0", venv:".venv", k8s:"prod-us1", aws:"acme-prod", pkg:"3.2.1", host:"gaurav-mbp",
+  battery:78, temp:22, song:"Midnight City", pomo:"18:42", streak:5, budget:5,
+  todos:12, testsFail:0, tserr:0, port:3000, portUp:true, docker:3, vpn:true,
+  calNext:"standup", calMin:20, ghn:5, btc:67.2, deadlineD:3, coffee:3
+};
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const ri=(a,b)=>Math.round(rnd(a,b));
+
+const tokens=()=>Math.round(sim.ctx/100*sim.win);
+const fmtTok=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1000?Math.round(n/1000)+"k":String(n);
+const fmtDur=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+"h"+String(m%60).padStart(2,"0")+"m":m+"m";};
+const pctCol=p=>p>=80?"red":p>=50?"yel":"grn";
+const meter=(p,n)=>{const f=Math.round(p/100*n);return "▓".repeat(f)+"░".repeat(n-f);};
+const clock=()=>{const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");};
+const MOON=["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"];
+const moon=()=>{const d=Math.floor((Date.now()/864e5-10)%29.53);return MOON[Math.floor(d/29.53*8)%8];};
+
+/* ================= catalog =================
+   badge: native (stdin JSON) · shell · gh (GitHub CLI) · derived (computed) · idea
+   text() -> string, or null = hidden right now (bar omits it; card dims sample) */
+const SEGS=[
+/* — claude code · session — */
+{id:"model", cat:"Claude Code · session", name:"Model", badge:"native", color:"org",
+ src:"model.display_name", nl:"the model name",
+ desc:"Which Claude model is driving this session — the first thing to glance at before an expensive ask.",
+ text:s=>"✳ "+s.model},
+{id:"folder", cat:"Claude Code · session", name:"Folder", badge:"native", color:"blu",
+ src:"workspace.current_dir → basename", nl:"the current folder name",
+ desc:"Just the project folder name — enough to tell tabs apart without eating bar width.",
+ text:s=>s.cwd.split("/").pop()},
+{id:"path", cat:"Claude Code · session", name:"Full path", badge:"native", color:"blu",
+ src:"workspace.current_dir", nl:"the full working directory",
+ desc:"The whole working directory, ~ shortened. Useful when you run Claude across many repos.",
+ text:s=>s.cwd},
+{id:"style", cat:"Claude Code · session", name:"Output style", badge:"native", color:"mag",
+ src:"output_style.name", nl:"the output style",
+ desc:"The active output style. Handy reminder when you switch between custom styles.",
+ text:s=>"✎ "+s.style},
+{id:"effort", cat:"Claude Code · session", name:"Effort level", badge:"native", color:"org",
+ src:"effort.level", nl:"the reasoning effort level",
+ desc:"Current reasoning effort (low → max). Explains why answers are fast or thorough.",
+ text:s=>"effort:"+s.effort},
+{id:"think", cat:"Claude Code · session", name:"Thinking", badge:"native", color:"cyn",
+ src:"thinking.enabled", nl:"a thinking indicator when extended thinking is on",
+ desc:"Shows only while extended thinking is enabled — quiet the rest of the time.",
+ sample:"✦ thinking", text:s=>s.think?"✦ thinking":null},
+{id:"fast", cat:"Claude Code · session", name:"Fast mode", badge:"native", color:"yel",
+ src:"fast_mode", nl:"a fast-mode flash when enabled",
+ desc:"A ⚡ that appears only when fast mode is on, so you never wonder which mode you're in.",
+ sample:"⚡ fast", text:s=>s.fast?"⚡ fast":null},
+{id:"vim", cat:"Claude Code · session", name:"Vim mode", badge:"native", color:"mag",
+ src:"vim.mode", nl:"the vim mode",
+ desc:"NORMAL / INSERT / VISUAL for vim-keybinding users — replaces the built-in indicator.",
+ sample:"-- INSERT --", text:s=>s.vim?"-- "+s.vim+" --":null},
+{id:"sname", cat:"Claude Code · session", name:"Session name", badge:"native", color:"cyn",
+ src:"session_name", nl:"the session name",
+ desc:"The session's name (yours or auto-generated) — great when juggling parallel sessions.",
+ text:s=>"§ "+s.sessionName},
+{id:"agent", cat:"Claude Code · session", name:"Agent", badge:"native", color:"mag",
+ src:"agent.name", nl:"the active agent name",
+ desc:"Which custom agent persona is running, when you launch with --agent.",
+ text:s=>"agent:"+s.agent},
+{id:"ver", cat:"Claude Code · session", name:"CC version", badge:"native", color:"dim",
+ src:"version", nl:"the Claude Code version",
+ desc:"The Claude Code build you're on — useful right after auto-updates.",
+ text:s=>"v"+s.version},
+
+/* — claude code · context & cost — */
+{id:"ctxbar", cat:"Claude Code · context & cost", name:"Context meter", badge:"native",
+ src:"context_window.used_percentage → ▓░", nl:"a block-character context meter",
+ desc:"A little fuel gauge for the context window. Green → yellow → red as it fills.",
+ color:s=>pctCol(s.ctx), text:s=>meter(s.ctx,8)+" "+Math.round(s.ctx)+"%"},
+{id:"ctxpct", cat:"Claude Code · context & cost", name:"Context used", badge:"native",
+ src:"context_window.used_percentage", nl:"context used percentage",
+ desc:"How full the context window is. Past ~80% quality drops and compaction looms.",
+ color:s=>pctCol(s.ctx), text:s=>Math.round(s.ctx)+"% ctx"},
+{id:"ctxleft", cat:"Claude Code · context & cost", name:"Context left", badge:"native",
+ src:"context_window.remaining_percentage", nl:"context remaining percentage",
+ desc:"Same gauge, framed as runway: how much room is left before /compact.",
+ color:s=>pctCol(s.ctx), text:s=>(100-Math.round(s.ctx))+"% left"},
+{id:"tok", cat:"Claude Code · context & cost", name:"Tokens", badge:"native", color:"dim",
+ src:"context_window.total_input_tokens", nl:"tokens in context",
+ desc:"Raw token count in context, for people who think in tokens rather than percent.",
+ text:s=>fmtTok(tokens())+" tok"},
+{id:"cache", cat:"Claude Code · context & cost", name:"Cache reads", badge:"native", color:"dim",
+ src:"current_usage.cache_read_input_tokens", nl:"cached tokens",
+ desc:"Tokens served from prompt cache — high numbers mean you're paying pennies for context.",
+ text:s=>"⟳ "+fmtTok(Math.round(tokens()*.6))},
+{id:"warn200", cat:"Claude Code · context & cost", name:"200k warning", badge:"native", color:"red",
+ src:"exceeds_200k_tokens", nl:"a warning past 200k tokens",
+ desc:"Silent until the session crosses 200k tokens, then screams. Only fires on 1M windows.",
+ sample:"⚠ >200k", text:s=>tokens()>200000?"⚠ >200k":null},
+{id:"cost", cat:"Claude Code · context & cost", name:"Session cost", badge:"native", color:"yel",
+ src:"cost.total_cost_usd", nl:"session cost in dollars",
+ desc:"Running dollar total for this session. The single most-requested statusline item.",
+ text:s=>"$"+s.cost.toFixed(2)},
+{id:"burn", cat:"Claude Code · context & cost", name:"Burn rate", badge:"derived", color:"yel",
+ src:"cost ÷ duration", nl:"cost burn rate per hour",
+ desc:"Cost divided by wall-clock time: what this session costs per hour if you keep going.",
+ text:s=>"$"+(s.cost/Math.max(s.dur/60,.02)).toFixed(2)+"/h"},
+{id:"budget", cat:"Claude Code · context & cost", name:"Budget meter", badge:"derived",
+ src:"cost vs your daily budget", nl:"a daily budget meter",
+ desc:"Your spend against a daily budget you set — a guilt gauge that fills up like a tank.",
+ color:s=>pctCol(s.cost/s.budget*100), text:s=>"bgt "+meter(Math.min(100,s.cost/s.budget*100),5)},
+{id:"dur", cat:"Claude Code · context & cost", name:"Session length", badge:"native", color:"dim",
+ src:"cost.total_duration_ms", nl:"session duration",
+ desc:"Wall-clock time since the session started. Good for 'wait, it's been 3 hours?' moments.",
+ text:s=>fmtDur(s.dur)},
+{id:"api", cat:"Claude Code · context & cost", name:"API time", badge:"native", color:"dim",
+ src:"cost.total_api_duration_ms", nl:"API wait time",
+ desc:"Cumulative time spent waiting on the model — the thinking share of your session.",
+ text:s=>"api "+Math.round(s.dur*2.9)+"s"},
+{id:"la", cat:"Claude Code · context & cost", name:"Lines added", badge:"native", color:"grn",
+ src:"cost.total_lines_added", nl:"lines added",
+ desc:"Lines of code Claude has added this session. Watch it climb during a refactor.",
+ text:s=>"+"+s.la},
+{id:"lr", cat:"Claude Code · context & cost", name:"Lines removed", badge:"native", color:"red",
+ src:"cost.total_lines_removed", nl:"lines removed",
+ desc:"Lines deleted this session — sometimes the more satisfying number.",
+ text:s=>"-"+s.lr},
+{id:"net", cat:"Claude Code · context & cost", name:"Net lines", badge:"derived", color:"cyn",
+ src:"lines added − removed", nl:"net line delta",
+ desc:"Added minus removed in one signed number. Negative deltas are a badge of honor.",
+ text:s=>"Δ"+(s.la-s.lr>=0?"+":"")+(s.la-s.lr)},
+{id:"ttc", cat:"Claude Code · context & cost", name:"Compact ETA", badge:"derived", color:"dim",
+ src:"context left ÷ fill rate", nl:"estimated time until auto-compact",
+ desc:"Estimates minutes until auto-compact from how fast context has been filling.",
+ text:s=>"⌛~"+Math.max(2,Math.round((95-s.ctx)*2.2))+"m"},
+{id:"rl5", cat:"Claude Code · context & cost", name:"5-hour limit", badge:"native",
+ src:"rate_limits.five_hour.used_percentage", nl:"5-hour rate-limit usage",
+ desc:"How much of your 5-hour usage window is gone (Pro/Max plans). Plan the afternoon.",
+ color:s=>pctCol(s.rl5), text:s=>"5h "+Math.round(s.rl5)+"%"},
+{id:"rl7", cat:"Claude Code · context & cost", name:"7-day limit", badge:"native",
+ src:"rate_limits.seven_day.used_percentage", nl:"7-day rate-limit usage",
+ desc:"The weekly usage window — the one that sneaks up on heavy users by Thursday.",
+ color:s=>pctCol(s.rl7), text:s=>"7d "+Math.round(s.rl7)+"%"},
+
+/* — git — */
+{id:"branch", cat:"Git", name:"Branch", badge:"shell", color:"grn",
+ src:"git branch --show-current", nl:"the git branch",
+ desc:"The branch you're actually on — the classic guard against committing to main.",
+ text:s=>"⎇ "+s.branch},
+{id:"dirty", cat:"Git", name:"Dirty files", badge:"shell",
+ src:"git status --porcelain | wc -l", nl:"count of uncommitted files",
+ desc:"How many files have uncommitted changes; shows a clean ✔ when the tree is tidy.",
+ color:s=>s.dirty?"yel":"grn", text:s=>s.dirty?"✚"+s.dirty:"✔"},
+{id:"ab", cat:"Git", name:"Ahead / behind", badge:"shell", color:"cyn",
+ src:"git rev-list --count @{u}...", nl:"commits ahead and behind upstream",
+ desc:"Commits you haven't pushed vs commits you haven't pulled. ↑0 ↓0 is inner peace.",
+ text:s=>"↑"+s.ahead+" ↓"+s.behind},
+{id:"hash", cat:"Git", name:"Commit hash", badge:"shell", color:"dim",
+ src:"git rev-parse --short HEAD", nl:"the short commit hash",
+ desc:"The short SHA of HEAD — handy when comparing against CI or a teammate's screen.",
+ text:s=>s.hash},
+{id:"age", cat:"Git", name:"Commit age", badge:"shell", color:"dim",
+ src:"git log -1 --format=%cr", nl:"time since last commit",
+ desc:"How long since the last commit — a gentle nudge to checkpoint your work.",
+ text:s=>s.age+"m ago"},
+{id:"stash", cat:"Git", name:"Stash count", badge:"shell", color:"yel",
+ src:"git stash list | wc -l", nl:"stash count",
+ desc:"Stashes quietly rotting in the background. Appears only when you have some.",
+ sample:"stash:2", text:s=>s.stash?"stash:"+s.stash:null},
+{id:"repo", cat:"Git", name:"Repo", badge:"native", color:"dim",
+ src:"workspace.repo.owner / .name", nl:"the repository owner/name",
+ desc:"owner/repo parsed from the origin remote — no shell command needed.",
+ text:()=>"acme/acme-app"},
+{id:"wt", cat:"Git", name:"Worktree", badge:"native", color:"cyn",
+ src:"worktree.name", nl:"the worktree name",
+ desc:"Which isolated worktree this session lives in, for --worktree parallel work.",
+ text:()=>"wt:my-feature"},
+
+/* — github — */
+{id:"pr", cat:"GitHub", name:"Pull request", badge:"native", color:"blu",
+ src:"pr.number · pr.review_state", nl:"the open PR and review state",
+ desc:"The open PR for this branch and its review state — piped in natively, no gh needed.",
+ text:s=>"#"+s.prN+" "+s.prState},
+{id:"checks", cat:"GitHub", name:"PR checks", badge:"gh",
+ src:"gh pr checks", nl:"CI check status on the PR",
+ desc:"CI status on your PR without alt-tabbing to GitHub. ◐ while checks are running.",
+ color:s=>s.checksPass>=s.checksTotal?"grn":"yel",
+ text:s=>(s.checksPass>=s.checksTotal?"✓":"◐")+" "+s.checksPass+"/"+s.checksTotal+" ci"},
+{id:"issues", cat:"GitHub", name:"My issues", badge:"gh", color:"blu",
+ src:"gh issue list --assignee @me", nl:"issues assigned to me",
+ desc:"Open issues assigned to you in this repo — a to-do list that follows you around.",
+ text:s=>"◦"+s.issues+" issues"},
+{id:"ghn", cat:"GitHub", name:"Notifications", badge:"gh", color:"mag",
+ src:"gh api notifications | length", nl:"unread GitHub notifications",
+ desc:"Unread GitHub notifications: review requests, mentions, failing workflows.",
+ text:s=>"🔔"+s.ghn},
+
+/* — dev environment — */
+{id:"tests", cat:"Dev environment", name:"Test status", badge:"shell",
+ src:"cached result of your last test run", nl:"whether the tests pass",
+ desc:"Pass/fail from your last test run (cache it to a file post-test). Red means fix first.",
+ color:s=>s.testsFail?"red":"grn", text:s=>s.testsFail?"✗ "+s.testsFail+" fail":"✓ tests"},
+{id:"tserr", cat:"Dev environment", name:"Type errors", badge:"shell",
+ src:"tsc --noEmit (cached)", nl:"the TypeScript error count",
+ desc:"TypeScript error count for the project. Zero is a lifestyle.",
+ color:s=>s.tserr?"red":"grn", text:s=>s.tserr?"ts:"+s.tserr:"ts ✓"},
+{id:"todo", cat:"Dev environment", name:"TODO count", badge:"shell", color:"yel",
+ src:"grep -r 'TODO' | wc -l", nl:"the TODO count in the repo",
+ desc:"TODOs and FIXMEs lurking in the codebase — watch Claude burn them down.",
+ text:s=>"☑ "+s.todos+" TODOs"},
+{id:"port", cat:"Dev environment", name:"Dev server", badge:"shell",
+ src:"lsof -i :3000", nl:"whether the dev server is up",
+ desc:"Is your dev server actually listening? Saves the 'why is localhost dead' minute.",
+ color:s=>s.portUp?"grn":"red", text:s=>(s.portUp?"●":"○")+" :"+s.port},
+{id:"docker", cat:"Dev environment", name:"Docker", badge:"shell", color:"cyn",
+ src:"docker ps -q | wc -l", nl:"running docker containers",
+ desc:"Running containers — spot the database you forgot to start (or stop).",
+ text:s=>"🐳 "+s.docker},
+{id:"vpn", cat:"Dev environment", name:"VPN", badge:"shell", color:"grn",
+ src:"scutil --nc list / ifconfig utun", nl:"VPN connection status",
+ desc:"Shows while the VPN is up — the difference between prod access and mystery timeouts.",
+ sample:"🔒 vpn", text:s=>s.vpn?"🔒 vpn":null},
+{id:"node", cat:"Dev environment", name:"Node version", badge:"shell", color:"grn",
+ src:"node -v", nl:"the Node version",
+ desc:"Active Node version — catches the wrong-nvm-in-this-terminal problem.",
+ text:s=>"⬢ v"+s.node},
+{id:"venv", cat:"Dev environment", name:"Python venv", badge:"shell", color:"cyn",
+ src:"$VIRTUAL_ENV", nl:"the active Python venv",
+ desc:"The active virtualenv, so pip installs land where you think they do.",
+ text:s=>"("+s.venv+")"},
+{id:"k8s", cat:"Dev environment", name:"K8s context", badge:"shell", color:"blu",
+ src:"kubectl config current-context", nl:"the kubernetes context",
+ desc:"Current kubectl context. Seeing 'prod' here before you hit enter has saved careers.",
+ text:s=>"⎈ "+s.k8s},
+{id:"aws", cat:"Dev environment", name:"AWS profile", badge:"shell", color:"yel",
+ src:"$AWS_PROFILE", nl:"the AWS profile",
+ desc:"Which AWS profile your commands will bill to — same energy as the k8s context.",
+ text:s=>"☁ "+s.aws},
+{id:"pkg", cat:"Dev environment", name:"Package ver", badge:"shell", color:"mag",
+ src:"jq .version package.json", nl:"the project package version",
+ desc:"Your project's version from package.json — nice during release weeks.",
+ text:s=>"📦"+s.pkg},
+
+/* — system — */
+{id:"clock", cat:"System", name:"Clock", badge:"shell", color:"dim",
+ src:"date +%H:%M  (refreshInterval)", nl:"the current time",
+ desc:"The time, living in your terminal. Pair with refreshInterval so it actually ticks.",
+ text:()=>clock()},
+{id:"date", cat:"System", name:"Date", badge:"shell", color:"dim",
+ src:"date '+%b %d'", nl:"today's date",
+ desc:"Today's date, for the deep-focus days when you genuinely aren't sure.",
+ text:()=>{const d=new Date();return d.toLocaleDateString("en",{month:"short",day:"numeric"});}},
+{id:"batt", cat:"System", name:"Battery", badge:"shell",
+ src:"pmset -g batt", nl:"laptop battery",
+ desc:"Laptop battery, red under 25% — because full-screen terminals hide the menu bar.",
+ color:s=>s.battery<25?"red":"grn", text:s=>"🔋"+Math.round(s.battery)+"%"},
+{id:"host", cat:"System", name:"Hostname", badge:"shell", color:"dim",
+ src:"hostname -s", nl:"the machine hostname",
+ desc:"Which machine this shell is on — essential once SSH enters the picture.",
+ text:s=>"@"+s.host},
+
+/* — ideas — */
+{id:"cal", cat:"Ideas", name:"Next meeting", badge:"idea", color:"blu",
+ src:"icalBuddy / gcal API (cached)", nl:"my next calendar event countdown",
+ desc:"Countdown to your next calendar event, so deep work ends on purpose, not in panic.",
+ text:s=>"📅 "+s.calNext+" in "+s.calMin+"m"},
+{id:"pomo", cat:"Ideas", name:"Pomodoro", badge:"idea", color:"red",
+ src:"your timer file + refreshInterval", nl:"a pomodoro countdown",
+ desc:"A pomodoro countdown read from a timer file — focus sprints inside the bar.",
+ text:s=>"🍅 "+s.pomo},
+{id:"deadline", cat:"Ideas", name:"Deadline", badge:"idea", color:"org",
+ src:"days until a date you set", nl:"a countdown to my deadline",
+ desc:"T-minus days to a ship date you set. Motivation or terror, your call.",
+ text:s=>"🚀 T-"+s.deadlineD+"d"},
+{id:"dayprog", cat:"Ideas", name:"Day progress", badge:"derived",
+ src:"clock → % of 9-to-6 elapsed", nl:"a workday progress meter",
+ desc:"Your 9-to-6 rendered as a progress bar. Oddly clarifying at 4:45pm.",
+ color:"cyn", text:()=>{const h=new Date().getHours()+new Date().getMinutes()/60;
+   return "day "+meter(Math.min(100,Math.max(0,(h-9)/9*100)),5);}},
+{id:"weather", cat:"Ideas", name:"Weather", badge:"idea", color:"yel",
+ src:"curl wttr.in (cached)", nl:"local weather",
+ desc:"Current conditions outside the terminal — know before your next touch-grass break.",
+ text:s=>"☀ "+s.temp+"°C"},
+{id:"moon", cat:"Ideas", name:"Moon phase", badge:"idea", color:"dim",
+ src:"computed from the date", nl:"the moon phase",
+ desc:"Tonight's moon phase. Zero utility, maximum vibe for late-night sessions.",
+ text:()=>moon()+" waxing"},
+{id:"song", cat:"Ideas", name:"Now playing", badge:"idea", color:"mag",
+ src:"osascript → Music/Spotify", nl:"the song now playing",
+ desc:"What's playing in Spotify or Music — your coding soundtrack, credited.",
+ text:s=>"♪ "+s.song},
+{id:"btc", cat:"Ideas", name:"Ticker", badge:"idea", color:"yel",
+ src:"price API (cached hourly)", nl:"a stock or crypto ticker",
+ desc:"One stock or coin you can't stop checking anyway — contained to 8 characters.",
+ text:s=>"₿"+s.btc.toFixed(1)+"k"},
+{id:"streak", cat:"Ideas", name:"Commit streak", badge:"idea", color:"org",
+ src:"git log --since, per day", nl:"my daily commit streak",
+ desc:"Consecutive days with at least one commit. Don't break the chain.",
+ text:s=>"🔥"+s.streak+"d"},
+{id:"coffee", cat:"Ideas", name:"Coffee count", badge:"idea", color:"yel",
+ src:"a tally file you bump", nl:"my coffee tally",
+ desc:"Cups today, from a tally file you bump with an alias. Science demands data.",
+ text:s=>"☕ "+s.coffee},
+];
+const byId=Object.fromEntries(SEGS.map(s=>[s.id,s]));
+const CATS=[...new Set(SEGS.map(s=>s.cat))];
+const BADGE={native:["native","b-native"],shell:["shell","b-shell"],gh:["gh cli","b-gh"],
+  derived:["derived","b-derived"],idea:["idea","b-idea"]};
+
+/* ================= state =================
+   selected holds segment ids plus "br#N" line-break tokens */
+let selected=["model","folder","branch","ctxbar","cost"];
+const opts={sep:" │ ",colors:true};
+let filter="All", live=true, brSeq=1, justAdded=null;
+try{
+  const saved=JSON.parse(localStorage.getItem("sls-state")||"null");
+  if(saved){
+    selected=saved.selected.filter(t=>t.startsWith("br#")||byId[t]);
+    Object.assign(opts,saved.opts);
+    brSeq=saved.brSeq||selected.filter(t=>t.startsWith("br#")).length+1;
+  }
+}catch(e){}
+function persist(){try{localStorage.setItem("sls-state",JSON.stringify({selected,opts,brSeq}));}catch(e){}}
+
+/* ================= status bar ================= */
+const $=id=>document.getElementById(id);
+const escH=t=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const colorOf=seg=>typeof seg.color==="function"?seg.color(sim):(seg.color||"def");
+let dragTok=null, barKey="";
+
+function barItems(){
+  const items=[];
+  for(const tok of selected){
+    if(tok.startsWith("br#")){items.push({tok,type:"br"});continue;}
+    const seg=byId[tok],t=seg.text(sim);
+    if(t===null)continue;
+    items.push({tok,type:"seg",text:t,cls:opts.colors?"c-"+colorOf(seg):"c-def",name:seg.name});
+  }
+  return items;
+}
+function wireDrag(el,tok){
+  el.draggable=true;
+  el.addEventListener("dragstart",()=>{dragTok=tok;el.classList.add("dragging");});
+  el.addEventListener("dragend",()=>{dragTok=null;el.classList.remove("dragging");});
+  el.addEventListener("dragover",e=>{
+    e.preventDefault();
+    if(!dragTok||dragTok===tok)return;
+    const f=selected.indexOf(dragTok),to=selected.indexOf(tok);
+    if(f<0||to<0)return;
+    selected.splice(f,1);selected.splice(to,0,dragTok);
+    barKey="";renderBar();persist();
+  });
+}
+function renderBar(){
+  const row=$("statusrow"), items=barItems();
+  const key=items.map(i=>i.tok).join(",")+"|"+opts.sep+"|"+opts.colors;
+  if(key===barKey && !dragTok){
+    /* structure unchanged → update text in place, no DOM churn, no flicker */
+    for(const i of items)if(i.type==="seg"){
+      const el=row.querySelector('[data-tok="'+i.tok+'"]');
+      if(el){if(el.textContent!==i.text)el.textContent=i.text;
+        const c="seg "+i.cls; if(el.className!==c)el.className=c;}
+    }
+  }else if(!dragTok||key!==barKey){
+    barKey=key; row.innerHTML="";
+    if(!items.length){
+      row.innerHTML='<span class="empty">· pick cards below — your status line builds here live ·</span>';
+    }else{
+      let line=document.createElement("div");line.className="sline";row.appendChild(line);
+      let first=true;
+      for(const i of items){
+        if(i.type==="br"){
+          const b=document.createElement("span");
+          b.className="brmark"+(justAdded===i.tok?" new":"");
+          b.textContent="⏎"; b.dataset.tok=i.tok;
+          b.title="line break — click to remove, drag to move";
+          b.onclick=()=>removeTok(i.tok); wireDrag(b,i.tok);
+          line.appendChild(b);
+          line=document.createElement("div");line.className="sline";row.appendChild(line);
+          first=true; continue;
+        }
+        if(!first){
+          const sp=document.createElement("span");sp.className="c-dim";sp.textContent=opts.sep;
+          line.appendChild(sp);
+        }
+        const el=document.createElement("span");
+        el.className="seg "+i.cls+(justAdded===i.tok?" new":"");
+        el.textContent=i.text; el.dataset.tok=i.tok;
+        el.title=i.name+" — click to remove, drag to reorder";
+        el.onclick=()=>removeTok(i.tok); wireDrag(el,i.tok);
+        line.appendChild(el); first=false;
+      }
+      justAdded=null;
+    }
+  }
+  /* meta */
+  const lens=[0];
+  for(const i of items){
+    if(i.type==="br"){lens.push(0);continue;}
+    lens[lens.length-1]+=(lens[lens.length-1]?opts.sep.length:0)+i.text.length;
+  }
+  const rows=lens.length, longest=Math.max(...lens);
+  const nSegs=selected.filter(t=>!t.startsWith("br#")).length;
+  $("barStats").textContent=nSegs+" selected · "+
+    (rows>1?rows+" rows · ":"")+"longest row ~"+longest+" chars";
+  $("barWarn").hidden=longest<=80;
+  $("termTitle").textContent="claude — "+sim.cwd.split("/").pop();
+}
+function removeTok(tok){
+  const i=selected.indexOf(tok);
+  if(i>=0){selected.splice(i,1);barKey="";renderBar();refreshChips();persist();}
+}
+
+/* ================= cards ================= */
+function cardChip(seg){
+  const t=seg.text(sim);
+  return {text:t===null?(seg.sample||"—")+"  · appears when active":t, ghost:t===null};
+}
+function renderGrid(){
+  const grid=$("grid"); grid.innerHTML="";
+  const cats=filter==="All"?CATS:[filter];
+  for(const cat of cats){
+    const head=document.createElement("div");
+    head.className="cathead";
+    head.innerHTML="<h3>"+escH(cat)+'</h3><div class="rule"></div>';
+    grid.appendChild(head);
+    for(const seg of SEGS.filter(s=>s.cat===cat)){
+      const card=document.createElement("div");
+      card.className="card"+(selected.includes(seg.id)?" sel":"");
+      card.dataset.id=seg.id; card.tabIndex=0; card.setAttribute("role","button");
+      card.setAttribute("aria-pressed",selected.includes(seg.id));
+      const {text,ghost}=cardChip(seg);
+      const [bl,bc]=BADGE[seg.badge];
+      card.innerHTML=
+        '<span class="check">✓</span>'+
+        '<span class="chip '+(ghost?"ghost ":"")+(opts.colors?"c-"+colorOf(seg):"c-def")+'">'+escH(text)+"</span>"+
+        '<div class="crow"><span class="cname">'+escH(seg.name)+
+        '</span><span class="badge '+bc+'">'+bl+"</span></div>"+
+        '<span class="cdesc">'+escH(seg.desc)+"</span>"+
+        '<span class="csrc">'+escH(seg.src)+"</span>";
+      card.onclick=()=>toggle(seg.id,card);
+      card.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggle(seg.id,card);}};
+      grid.appendChild(card);
+    }
+  }
+}
+function refreshChips(){
+  document.querySelectorAll(".card").forEach(card=>{
+    const seg=byId[card.dataset.id];
+    const {text,ghost}=cardChip(seg);
+    const chip=card.querySelector(".chip");
+    const c="chip "+(ghost?"ghost ":"")+(opts.colors?"c-"+colorOf(seg):"c-def");
+    if(chip.className!==c)chip.className=c;
+    if(chip.textContent!==text)chip.textContent=text;
+    const sel=selected.includes(seg.id);
+    card.classList.toggle("sel",sel);
+    card.setAttribute("aria-pressed",sel);
+  });
+}
+function flyToBar(card){
+  if(!card||matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  const chip=card.querySelector(".chip"),bar=$("statusrow");
+  const r1=chip.getBoundingClientRect(),r2=bar.getBoundingClientRect();
+  const c=chip.cloneNode(true);
+  Object.assign(c.style,{position:"fixed",left:r1.left+"px",top:r1.top+"px",width:r1.width+"px",
+    margin:0,zIndex:99,pointerEvents:"none",background:"#0B0A07",
+    transition:"all .45s cubic-bezier(.2,.7,.3,1)"});
+  document.body.appendChild(c);
+  requestAnimationFrame(()=>{Object.assign(c.style,{left:Math.max(20,r2.right-160)+"px",
+    top:r2.top+"px",width:"120px",opacity:".15",transform:"scale(.7)"});});
+  setTimeout(()=>c.remove(),480);
+}
+function toggle(id,card){
+  const i=selected.indexOf(id);
+  if(i>=0)selected.splice(i,1);
+  else{selected.push(id);justAdded=id;
+    flyToBar(card||document.querySelector('.card[data-id="'+id+'"]'));}
+  barKey="";renderBar();refreshChips();persist();
+}
+
+/* ================= filters & packs ================= */
+function renderFilters(){
+  const f=$("filters"); f.innerHTML="";
+  const mk=(label,val,n)=>{
+    const b=document.createElement("button");
+    b.className="fchip"+(filter===val?" on":"");
+    b.innerHTML=escH(label)+(n?'<span class="n">'+n+"</span>":"");
+    b.onclick=()=>{filter=val;renderFilters();renderGrid();};
+    f.appendChild(b);
+  };
+  mk("All","All",SEGS.length);
+  for(const c of CATS)mk(c,c,SEGS.filter(s=>s.cat===c).length);
+}
+const PACKS={
+  minimal:["model","folder","branch"],
+  essentials:["model","folder","branch","ctxbar","cost"],
+  git:["folder","branch","dirty","ab","hash","age","pr","checks"],
+  ops:["model","folder","branch","k8s","aws","node","ctxpct","cost","burn","rl5"],
+  twoline:["model","folder","branch","dirty","ab","BR","ctxbar","cost","burn","la","lr","rl5"],
+  fun:["model","ctxbar","burn","streak","pomo","song","weather","batt","coffee"],
+  clear:[]
+};
+document.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{
+  selected=PACKS[b.dataset.pack].map(t=>t==="BR"?"br#"+(brSeq++):t);
+  barKey="";renderBar();refreshChips();persist();
+});
+
+/* ================= topbar ================= */
+$("sepSel").value=opts.sep;
+$("sepSel").onchange=e=>{opts.sep=e.target.value;barKey="";renderBar();persist();};
+$("colorBtn").classList.toggle("on",opts.colors);
+$("colorBtn").onclick=e=>{
+  opts.colors=!opts.colors;
+  e.currentTarget.classList.toggle("on",opts.colors);
+  e.currentTarget.setAttribute("aria-pressed",opts.colors);
+  barKey="";renderBar();refreshChips();persist();
+};
+$("brBtn").onclick=()=>{
+  const tok="br#"+(brSeq++);
+  selected.push(tok);justAdded=tok;
+  barKey="";renderBar();persist();
+};
+$("liveBtn").onclick=e=>{
+  live=!live;
+  e.currentTarget.classList.toggle("on",live);
+  e.currentTarget.setAttribute("aria-pressed",live);
+};
+$("shuffleBtn").onclick=()=>{
+  Object.assign(sim,{ctx:ri(2,96),cost:ri(2,1400)/100,dur:ri(2,300),la:ri(0,1800),lr:ri(0,1100),
+    rl5:ri(0,95),rl7:ri(0,95),dirty:ri(0,9),ahead:ri(0,6),behind:ri(0,4),stash:ri(0,3),
+    age:ri(1,58),battery:ri(8,100),checksPass:ri(0,3),checksTotal:3,issues:ri(0,12),
+    temp:ri(-4,36),streak:ri(0,21),pomo:ri(1,24)+":"+String(ri(0,59)).padStart(2,"0"),
+    vim:["","NORMAL","INSERT","VISUAL"][ri(0,3)],fast:Math.random()<.3,think:Math.random()<.75,
+    todos:ri(0,40),testsFail:Math.random()<.3?ri(1,7):0,tserr:Math.random()<.3?ri(1,12):0,
+    portUp:Math.random()<.8,docker:ri(0,6),vpn:Math.random()<.6,calMin:ri(3,110),
+    ghn:ri(0,15),btc:rnd(40,110),deadlineD:ri(1,14),coffee:ri(0,6)});
+  renderBar();refreshChips();
+};
+/* ---------- build instructions for Claude ---------- */
+const HEX={grn:"#5DC26E",yel:"#D9A43B",red:"#E5654F",cyn:"#4FC4CE",mag:"#C79BF2",
+  blu:"#6CA9F0",org:"#E58A64",dim:"#847B69",def:"#ECE5D8"};
+const BADGE_HINT={native:"from the stdin JSON",shell:"shell command",
+  gh:"needs the gh CLI",derived:"computed from stdin JSON fields",
+  idea:"custom tooling — use the source hint"};
+function segRows(){
+  const rows=[[]];
+  for(const tok of selected){
+    if(tok.startsWith("br#")){rows.push([]);continue;}
+    rows[rows.length-1].push(byId[tok]);
+  }
+  return rows.filter(r=>r.length);
+}
+function buildInstructions(){
+  const rows=segRows();
+  if(!rows.length)return "(select some segments first)";
+  const L=[];
+  L.push("Set up my Claude Code status line exactly as specified below.");
+  L.push("");
+  L.push("Create the script at ~/.claude/statusline.sh, chmod +x it, and point settings.json at it:");
+  L.push('  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh", "padding": 0, "refreshInterval": 30 }');
+  L.push("The script receives session JSON on stdin; every line it prints becomes one status row.");
+  L.push("");
+  L.push("Layout: "+rows.length+" row"+(rows.length>1?"s":"")+
+    '. Within a row, join segments with the separator "'+opts.sep+'" rendered in dim '+HEX.dim+".");
+  rows.forEach((row,ri)=>{
+    L.push("");
+    L.push("Row "+(ri+1)+":");
+    row.forEach((seg,si)=>{
+      const ex=seg.text(sim)??seg.sample??"";
+      const colorNote=typeof seg.color==="function"
+        ?"threshold-colored (see rule below)"
+        :"color "+HEX[seg.color||"def"];
+      let line="  "+(si+1)+". "+seg.name+" — source: "+seg.src+
+        " ("+BADGE_HINT[seg.badge]+') — looks like "'+ex+'" — '+colorNote;
+      if(seg.sample!==undefined)line+=" — hide entirely when inactive/absent";
+      L.push(line);
+    });
+  });
+  L.push("");
+  L.push("Rules:");
+  if(opts.colors){
+    L.push("- Colors are 24-bit truecolor ANSI escapes: \\033[38;2;R;G;Bm using the exact hex values above, reset with \\033[0m.");
+    L.push("- Threshold-colored segments (context, rate limits, battery): green "+HEX.grn+
+      " below 50%, yellow "+HEX.yel+" from 50%, red "+HEX.red+" from 80% (battery: red below 25%).");
+  }else{
+    L.push("- Plain text, no ANSI colors.");
+  }
+  L.push("- Guard conditional stdin fields with jq fallbacks (e.g. .vim.mode // empty) so the bar never breaks.");
+  L.push("- Keep the script fast (<300ms): cache slow commands (git counts, weather, streaks) in ${TMPDIR}-based files with sensible TTLs.");
+  L.push("- Segments that would be empty are skipped, not left as blank gaps.");
+  L.push("");
+  L.push("I'm also providing a screenshot of the exact target rendering (statusline-target.png — attached, or in ~/Downloads). After building, run the script with sample JSON, compare your output to the screenshot (order, glyphs, colors, row breaks), and iterate until it matches.");
+  return L.join("\n");
+}
+$("copyBtn").onclick=()=>copyText(buildInstructions());
+
+/* ---------- screenshot of the simulated bar ---------- */
+function barCanvas(){
+  const items=barItems(), scale=2, fs=13, lh=22, padX=18, padY=13;
+  const runsPerLine=[[]];
+  let first=true;
+  for(const i of items){
+    if(i.type==="br"){runsPerLine.push([]);first=true;continue;}
+    const cur=runsPerLine[runsPerLine.length-1];
+    if(!first)cur.push({t:opts.sep,c:HEX.dim});
+    cur.push({t:i.text,c:HEX[i.cls.slice(2)]||HEX.def});
+    first=false;
+  }
+  const cv=document.createElement("canvas"),ctx=cv.getContext("2d");
+  const font=fs*scale+'px "SF Mono", Menlo, "Cascadia Code", monospace';
+  ctx.font=font;
+  let maxW=0;
+  for(const runs of runsPerLine){
+    let w=0;for(const r of runs)w+=ctx.measureText(r.t).width;
+    maxW=Math.max(maxW,w);
+  }
+  cv.width=Math.ceil(maxW+padX*2*scale);
+  cv.height=runsPerLine.length*lh*scale+padY*2*scale;
+  ctx.fillStyle="#0B0A07";
+  ctx.beginPath();ctx.roundRect(0,0,cv.width,cv.height,10*scale);ctx.fill();
+  ctx.strokeStyle="#262119";ctx.lineWidth=scale;
+  ctx.beginPath();ctx.roundRect(scale/2,scale/2,cv.width-scale,cv.height-scale,10*scale);ctx.stroke();
+  ctx.font=font;ctx.textBaseline="middle";
+  runsPerLine.forEach((runs,li)=>{
+    let x=padX*scale;
+    const y=padY*scale+lh*scale*(li+.5);
+    for(const r of runs){ctx.fillStyle=r.c;ctx.fillText(r.t,x,y);x+=ctx.measureText(r.t).width;}
+  });
+  return cv;
+}
+$("shotBtn").onclick=()=>{
+  if(!selected.some(t=>!t.startsWith("br#"))){toast("Select some segments first");return;}
+  barCanvas().toBlob(async blob=>{
+    if(!blob){toast("Screenshot failed");return;}
+    try{
+      await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
+      toast("Screenshot copied — paste it to Claude");
+    }catch(e){
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);a.download="statusline-target.png";a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      toast("Saved statusline-target.png");
+    }
+  },"image/png");
+};
+function toast(msg){
+  const t=$("toast");t.textContent=msg;t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),1600);
+}
+function copyText(txt){
+  const legacy=()=>{
+    const ta=document.createElement("textarea");
+    ta.value=txt;ta.setAttribute("readonly","");
+    ta.style.cssText="position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(ta);ta.focus();ta.select();
+    let ok=false;try{ok=document.execCommand("copy");}catch(e){}
+    ta.remove();
+    if(ok)toast("Copied");
+    else{$("copyPanel").hidden=false;const p=$("copyTa");p.value=txt;p.focus();p.select();}
+  };
+  if(navigator.clipboard&&window.isSecureContext)
+    navigator.clipboard.writeText(txt).then(()=>toast("Copied")).catch(legacy);
+  else legacy();
+}
+$("copyClose").onclick=()=>{$("copyPanel").hidden=true;};
+$("copyPanel").onclick=e=>{if(e.target===$("copyPanel"))$("copyPanel").hidden=true;};
+
+/* ================= live ticker (in-place updates only — no flicker) ================= */
+setInterval(()=>{
+  if(!live||dragTok||document.hidden)return;
+  sim.ctx=Math.min(99,sim.ctx+rnd(.05,.5));
+  sim.cost+=rnd(.001,.006);
+  sim.dur+=.04;
+  if(Math.random()<.3)sim.la+=ri(1,9);
+  if(Math.random()<.15)sim.lr+=ri(1,4);
+  if(Math.random()<.06)sim.age+=1;
+  if(Math.random()<.04)sim.calMin=Math.max(1,sim.calMin-1);
+  renderBar();refreshChips();
+},2400);
+
+/* ================= init ================= */
+renderFilters();renderGrid();renderBar();
+</script>

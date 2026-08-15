@@ -3,7 +3,7 @@
 Design your [Claude Code](https://code.claude.com) status line by clicking, not by guessing.
 
 Statusline Studio is a zero-dependency, single-page webapp that lets you **compose a status
-line visually** from 61 live-simulated data points — context window, session cost, git state,
+line visually** from 65 live-simulated data points — context window, session cost, git state,
 CI checks, dev environment, even the song you're playing — and then hand Claude Code an exact
 build spec plus a screenshot so it can build and *verify* the real thing.
 

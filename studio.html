@@ -17,7 +17,11 @@
     --grn:#5DC26E; --yel:#D9A43B; --red:#E5654F; --cyn:#4FC4CE; --mag:#C79BF2; --blu:#6CA9F0; --org:#E58A64;
     --shadow:0 2px 6px rgba(0,0,0,.4),0 14px 40px rgba(0,0,0,.45);
   }
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+  ::-webkit-scrollbar-corner{background:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);
     font:14px/1.5 "IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
     -webkit-font-smoothing:antialiased}
@@ -80,7 +84,9 @@
     animation:blink 1.1s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
   #statusrow{min-height:24px;padding-top:1px}
-  .sline{white-space:nowrap;min-width:min-content}
+  .sline{white-space:nowrap;min-width:min-content;min-height:24px;padding-right:70px}
+  .linehint{display:inline-block;border:1px dashed var(--t-line);border-radius:6px;
+    color:var(--t-dim);font-size:11px;padding:2px 12px;opacity:.75;pointer-events:none}
   .seg{display:inline-block;border-radius:4px;padding:0 1px;cursor:grab;transition:background .15s}
   .seg:hover{background:rgba(229,138,100,.16);text-decoration:line-through;
     text-decoration-color:var(--red)}
@@ -238,7 +244,7 @@
   <div class="barmeta">
     <span id="barStats"></span>
     <span id="barWarn" class="warn" hidden>⚠ a row is over ~80 chars — may truncate</span>
-    <span class="tip">drag to reorder · click a segment (or ⏎) to remove</span>
+    <span class="tip">drag to reorder — drop on any row to move it there · click a segment (or ⏎) to remove</span>
   </div>
 </div></div>
 
@@ -599,6 +605,30 @@ function barItems(){
   }
   return items;
 }
+/* dropping on a row (incl. an empty one) moves the dragged token to that row's end */
+function attachLineDrop(l,lineIdx){
+  l.addEventListener("dragover",e=>{
+    if(!dragTok)return;
+    e.preventDefault();
+    if(e.target!==l)return;            /* segs handle their own reorder */
+    const f=selected.indexOf(dragTok); if(f<0)return;
+    const tok=dragTok;
+    selected.splice(f,1);
+    let count=0,anchor=selected.length;
+    for(let i=0;i<selected.length;i++){
+      if(selected[i].startsWith("br#")){
+        if(count===lineIdx){anchor=i;break;}
+        count++;
+      }
+    }
+    if(anchor===f){selected.splice(f,0,tok);return;}   /* already at that spot */
+    selected.splice(anchor,0,tok);
+    barKey="";renderBar();persist();
+  });
+}
+/* rebuilds mid-drag orphan per-element dragend listeners — reset globally */
+document.addEventListener("dragend",()=>{dragTok=null;});
+document.addEventListener("drop",e=>e.preventDefault());
 function wireDrag(el,tok){
   el.draggable=true;
   el.addEventListener("dragstart",()=>{dragTok=tok;el.classList.add("dragging");});
@@ -627,7 +657,12 @@ function renderBar(){
     if(!items.length){
       row.innerHTML='<span class="empty">· pick cards below — your status line builds here live ·</span>';
     }else{
-      let line=document.createElement("div");line.className="sline";row.appendChild(line);
+      let lineIdx=0;
+      const newLine=()=>{
+        const l=document.createElement("div");l.className="sline";
+        attachLineDrop(l,lineIdx);row.appendChild(l);return l;
+      };
+      let line=newLine();
       let first=true;
       for(const i of items){
         if(i.type==="br"){
@@ -637,7 +672,7 @@ function renderBar(){
           b.title="line break — click to remove, drag to move";
           b.onclick=()=>removeTok(i.tok); wireDrag(b,i.tok);
           line.appendChild(b);
-          line=document.createElement("div");line.className="sline";row.appendChild(line);
+          lineIdx++; line=newLine();
           first=true; continue;
         }
         if(!first){
@@ -651,6 +686,10 @@ function renderBar(){
         el.onclick=()=>removeTok(i.tok); wireDrag(el,i.tok);
         line.appendChild(el); first=false;
       }
+      row.querySelectorAll(".sline").forEach(l=>{
+        if(!l.querySelector(".seg"))l.insertAdjacentHTML("afterbegin",
+          '<span class="linehint">empty row — drag a segment here</span>');
+      });
       justAdded=null;
     }
   }

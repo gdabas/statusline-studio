@@ -7,6 +7,8 @@ line visually** from 65 live-simulated data points — context window, session c
 CI checks, dev environment, even the song you're playing — and then hand Claude Code an exact
 build spec plus a screenshot so it can build and *verify* the real thing.
 
+![The Studio — a live simulated terminal on top, segment cards below; here composing a two-row bar](docs/studio.jpg)
+
 ## How it works
 
 1. **Compose** — open `studio.html`, click cards to add segments, drag to reorder, hit
@@ -28,6 +30,8 @@ No build step, no dependencies. Either:
 - serve the folder: `python3 -m http.server 8080`, or
 - enable **GitHub Pages** on this repo (deploy from branch, root) — the landing page becomes
   your public URL.
+
+![The landing page](docs/landing.jpg)
 
 > Tip: clipboard APIs (copy text / copy PNG) work best over `https://` or `http://localhost`.
 > When the clipboard is blocked, the app falls back to a select-and-⌘C panel and a PNG

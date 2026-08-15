@@ -1,4 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Statusline Studio</title>
+<meta name="description" content="Design your Claude Code status line visually, then hand Claude the spec and a screenshot to build it.">
 <style>
   /* single-theme dark app — deliberate: this is a terminal instrument panel */
   :root{
@@ -148,6 +154,8 @@
     .term-body{font-size:11.5px}
   }
 </style>
+</head>
+<body>
 
 <div class="topbar">
   <span class="logo"><span class="p">▸</span> statusline<span class="p">.</span>studio</span>
@@ -204,7 +212,7 @@
   font-size:12.5px;display:flex;gap:14px;flex-wrap:wrap">
   <span>Statusline Studio</span><span>·</span>
   <a href="index.html" style="color:var(--accent)">about</a><span>·</span>
-  <a href="https://github.com/YOUR-USERNAME/statusline-studio" style="color:var(--accent)">GitHub</a>
+  <a href="https://github.com/gdabas/statusline-studio" style="color:var(--accent)">GitHub</a>
   <span>·</span><span>Apache-2.0</span>
 </footer>
 
@@ -903,3 +911,6 @@ setInterval(()=>{
 /* ================= init ================= */
 renderFilters();renderGrid();renderBar();
 </script>
+
+</body>
+</html>

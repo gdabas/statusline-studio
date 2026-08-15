@@ -889,10 +889,31 @@ function buildInstructions(){
   L.push("- Keep the script fast (<300ms): cache slow commands (git counts, weather, streaks) in ${TMPDIR}-based files with sensible TTLs.");
   L.push("- Segments that would be empty are skipped, not left as blank gaps.");
   L.push("");
-  L.push("I'm also providing a screenshot of the exact target rendering (statusline-target.png — attached, or in ~/Downloads). After building, run the script with sample JSON, compare your output to the screenshot (order, glyphs, colors, row breaks), and iterate until it matches.");
+  L.push("A PNG screenshot of the exact target rendering is on the clipboard alongside this text (if pasting only inserted this text, paste once more to get the image; otherwise use statusline-target.png from ~/Downloads). After building, run the script with sample JSON, compare your output to the screenshot (order, glyphs, colors, row breaks), and iterate until it matches.");
   return L.join("\n");
 }
-$("copyBtn").onclick=()=>copyText(buildInstructions());
+$("copyBtn").onclick=async()=>{
+  const txt=buildInstructions();
+  if(!selected.some(t=>!t.startsWith("br#"))){copyText(txt);return;}
+  const png=await new Promise(r=>{try{barCanvas().toBlob(r,"image/png");}catch(e){r(null);}});
+  /* one clipboard write carrying BOTH the spec text and the target screenshot */
+  if(png&&navigator.clipboard&&window.ClipboardItem){
+    try{
+      await navigator.clipboard.write([new ClipboardItem({
+        "text/plain":new Blob([txt],{type:"text/plain"}),
+        "image/png":png
+      })]);
+      toast("Spec + screenshot copied — paste into Claude Code (paste twice: image, then text)");
+      return;
+    }catch(e){}
+  }
+  copyText(txt);
+  if(png){
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(png);a.download="statusline-target.png";a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  }
+};
 
 /* ---------- screenshot of the simulated bar ---------- */
 function barCanvas(){

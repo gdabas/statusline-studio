@@ -106,7 +106,7 @@
     white-space:nowrap;min-width:min-content}
   .icaret{display:inline-block;width:7px;height:14px;background:var(--ink);vertical-align:-2px;
     animation:blink 1.1s steps(1) infinite}
-  #demoBar{white-space:nowrap;min-height:50px;transition:opacity .4s ease}
+  #demoBar{white-space:nowrap;min-height:76px;transition:opacity .4s ease}
   #demoBar.fade{opacity:0}
   #demoBar .row{display:block}
   .demo-cap{text-align:center;color:var(--muted);font:12.5px var(--mono);margin-top:14px}
@@ -333,18 +333,25 @@
 
 <script>
 "use strict";
-/* cycle example bars in the hero terminal */
+/* cycle example bars in the hero terminal — each with its own separator + row count */
 const BARS=[
- {cap:"essentials",rows:[[
+ {cap:"essentials",sep:" · ",rows:[[
   ["c-org","✳ Fable 5"],["c-blu","acme-app"],["c-grn","⎇ feat/auth"],
   ["c-grn","▓▓▓░░░░░ 34%"],["c-yel","$0.42"]]]},
- {cap:"git head-up",rows:[[
+ {cap:"git head-up",sep:" │ ",rows:[[
   ["c-blu","acme-app"],["c-grn","⎇ feat/auth"],["c-yel","✚3"],["c-cyn","↑2 ↓0"],
   ["c-dim","a3f9c21"],["c-blu","#1234 pending"],["c-grn","✓ 3/3 ci"]]]},
- {cap:"two-line deluxe",rows:[
-  [["c-org","✳ Fable 5"],["c-blu","acme-app"],["c-grn","⎇ feat/auth"],["c-yel","✚3"]],
+ {cap:"ops cockpit",sep:" ⟩ ",rows:[[
+  ["c-org","✳ Fable 5"],["c-blu","⎈ prod-us1"],["c-yel","☁ acme-prod"],["c-grn","⬢ v22.6"],
+  ["c-yel","63% ctx"],["c-yel","$3.87"],["c-grn","5h 38%"]]]},
+ {cap:"two-line deluxe",sep:" │ ",rows:[
+  [["c-org","✳ Fable 5"],["c-blu","acme-app"],["c-grn","⎇ feat/auth"],["c-yel","✚3"],["c-cyn","↑2 ↓0"]],
   [["c-red","▓▓▓▓▓▓▓░ 91%"],["c-yel","$8.40"],["c-yel","$2.80/h"],["c-grn","+1204"],["c-red","-857"]]]},
- {cap:"fun mode",rows:[[
+ {cap:"mission control · 3 rows",sep:" │ ",rows:[
+  [["c-blu","acme-app"],["c-grn","⎇ feat/auth"],["c-cyn","Δ+577"],["c-yel","✚3"],["c-dim","46m ago"]],
+  [["c-org","✳ Fable 5"],["c-yel","▓▓▓▓▓░░░ 63%"],["c-dim","198k tok"],["c-yel","$13.41"],["c-grn","5h 22%"]],
+  [["c-cyn","§ statusline-lab"],["c-dim","2h31m"],["c-grn","🔒 vpn"],["c-grn","● :3000"],["c-mag","♪ Midnight City"]]]},
+ {cap:"fun mode",sep:" · ",rows:[[
   ["c-org","✳ Fable 5"],["c-yel","$0.54/h"],["c-org","🔥5d"],["c-red","🍅 18:42"],
   ["c-mag","♪ Midnight City"],["c-yel","☀ 22°C"]]]}
 ];
@@ -354,7 +361,7 @@ function showBar(){
   const b=BARS[bi%BARS.length];
   bar.innerHTML=b.rows.map(r=>'<span class="row">'+
     r.map(s=>'<span class="'+s[0]+'">'+s[1]+"</span>")
-     .join('<span class="c-dim"> · </span>')+"</span>").join("");
+     .join('<span class="c-dim">'+b.sep+"</span>")+"</span>").join("");
   cap.textContent=b.cap;
   bi++;
 }

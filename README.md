@@ -7,7 +7,7 @@ line visually** from 65 live-simulated data points — context window, session c
 CI checks, dev environment, even the song you're playing — and then hand Claude Code an exact
 build spec plus a screenshot so it can build and *verify* the real thing.
 
-![The Studio — a live simulated terminal on top, segment cards below; here composing a two-row bar](docs/studio.jpg)
+![Six example status lines cycling in a simulated terminal — different separators, single-, two-, and three-row layouts](docs/demo.gif)
 
 ## How it works
 
@@ -31,7 +31,7 @@ No build step, no dependencies. Either:
 - enable **GitHub Pages** on this repo (deploy from branch, root) — the landing page becomes
   your public URL.
 
-![The landing page](docs/landing.jpg)
+![The Studio — a live simulated terminal pinned on top, segment cards below](docs/studio.jpg)
 
 > Tip: clipboard APIs (copy text / copy PNG) work best over `https://` or `http://localhost`.
 > When the clipboard is blocked, the app falls back to a select-and-⌘C panel and a PNG

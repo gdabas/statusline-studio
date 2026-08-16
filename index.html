@@ -355,13 +355,13 @@ const BARS=[
   ["c-dim","a3f9c21"],["c-blu","#1234 pending"],["c-grn","✓ 3/3 ci"]]]},
  {cap:"ops cockpit",sep:" ⟩ ",rows:[[
   ["c-org","✳ Fable 5"],["c-blu","⎈ prod-us1"],["c-yel","☁ acme-prod"],["c-grn","⬢ v22.6"],
-  ["c-yel","63% ctx"],["c-yel","$3.87"],["c-grn","5h 38%"]]]},
+  ["c-yel","63% ctx"],["c-yel","$3.87"],["c-grn","5h 38% ⟳42m"]]]},
  {cap:"two-line deluxe",sep:" │ ",rows:[
   [["c-org","✳ Fable 5"],["c-blu","acme-app"],["c-grn","⎇ feat/auth"],["c-yel","✚3"],["c-cyn","↑2 ↓0"]],
   [["c-red","▓▓▓▓▓▓▓░ 91%"],["c-yel","$8.40"],["c-yel","$2.80/h"],["c-grn","+1204"],["c-red","-857"]]]},
  {cap:"mission control · 3 rows",sep:" │ ",rows:[
   [["c-blu","acme-app"],["c-grn","⎇ feat/auth"],["c-cyn","Δ+577"],["c-yel","✚3"],["c-dim","46m ago"]],
-  [["c-org","✳ Fable 5"],["c-yel","▓▓▓▓▓░░░ 63%"],["c-dim","198k tok"],["c-yel","$13.41"],["c-grn","5h 22%"]],
+  [["c-org","✳ Fable 5"],["c-yel","▓▓▓▓▓░░░ 63%"],["c-dim","198k tok"],["c-yel","$13.41"],["c-grn","5h 22% ⟳1h48m"]],
   [["c-cyn","§ statusline-lab"],["c-dim","2h31m"],["c-grn","🔒 vpn"],["c-grn","● :3000"],["c-mag","♪ Midnight City"]]]},
  {cap:"fun mode",sep:" · ",rows:[[
   ["c-org","✳ Fable 5"],["c-yel","$0.54/h"],["c-org","🔥5d"],["c-red","🍅 18:42"],
@@ -391,7 +391,7 @@ const TICK=[["c-org","✳ Fable 5"],["c-dim","│"],["c-blu","acme-app"],["c-dim
  ["c-dim","│"],["c-cyn","⎈ prod-us1"],["c-dim","│"],["c-yel","☀ 22°C"],["c-dim","│"],
  ["c-grn","● :3000"],["c-dim","│"],["c-org","🔥5d"],["c-dim","│"],["c-blu","#1234 pending"],
  ["c-dim","│"],["c-dim","13:40"],["c-dim","│"],["c-mag","♪ Midnight City"],["c-dim","│"],
- ["c-grn","+842"],["c-red","-311"],["c-dim","│"],["c-yel","5h 38%"],["c-dim","│"]];
+ ["c-grn","+842"],["c-red","-311"],["c-dim","│"],["c-yel","5h 38% ⟳42m"],["c-dim","│"]];
 const run=TICK.map(s=>'<span class="'+s[0]+'">'+s[1]+"</span>").join("");
 document.getElementById("tickerTrack").innerHTML=run+run;
 

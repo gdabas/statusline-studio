@@ -271,7 +271,8 @@
 "use strict";
 /* ================= fake session ================= */
 const sim = {
-  model:"Fable 5", ctx:34, cost:0.42, dur:47, la:156, lr:23, rl5:24, rl7:41,
+  model:"Fable 5", ctx:34, cost:0.42, dur:47, la:156, lr:23,
+  rl5:24, rl7:41, rl5r:108, rl7r:3120,   /* minutes until each window resets */
   branch:"feat/statusline", dirty:3, ahead:2, behind:1, stash:1,
   hash:"a3f9c21", age:12, vim:"NORMAL", effort:"high", think:true, fast:false,
   style:"default", sessionName:"statusline-lab", agent:"reviewer", version:"2.1.90",
@@ -289,6 +290,9 @@ const tokens=()=>Math.round(sim.ctx/100*sim.win);
 const fmtTok=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1000?Math.round(n/1000)+"k":String(n);
 const fmtDur=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+"h"+String(m%60).padStart(2,"0")+"m":m+"m";};
 const pctCol=p=>p>=80?"red":p>=50?"yel":"grn";
+const fmtReset=m=>m>=1440?Math.floor(m/1440)+"d"+(Math.floor(m%1440/60)?Math.floor(m%1440/60)+"h":"")
+  :m>=60?Math.floor(m/60)+"h"+(m%60?String(m%60).padStart(2,"0")+"m":"")
+  :m+"m";
 const meter=(p,n)=>{const f=Math.round(p/100*n);return "▓".repeat(f)+"░".repeat(n-f);};
 const clock=()=>{const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");};
 const MOON=["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"];
@@ -406,13 +410,13 @@ const SEGS=[
  desc:"Estimates minutes until auto-compact from how fast context has been filling.",
  text:s=>"⌛~"+Math.max(2,Math.round((95-s.ctx)*2.2))+"m"},
 {id:"rl5", cat:"Claude Code · context & cost", name:"5-hour limit", badge:"native",
- src:"rate_limits.five_hour.used_percentage", nl:"5-hour rate-limit usage",
- desc:"How much of your 5-hour usage window is gone (Pro/Max plans). Plan the afternoon.",
- color:s=>pctCol(s.rl5), text:s=>"5h "+Math.round(s.rl5)+"%"},
+ src:"rate_limits.five_hour: used_percentage · resets_at", nl:"5-hour rate-limit usage with time until it resets",
+ desc:"How much of your 5-hour window is gone, and ⟳ how long until it resets — the number that actually decides whether to push on or take a break.",
+ color:s=>pctCol(s.rl5), text:s=>"5h "+Math.round(s.rl5)+"% ⟳"+fmtReset(s.rl5r)},
 {id:"rl7", cat:"Claude Code · context & cost", name:"7-day limit", badge:"native",
- src:"rate_limits.seven_day.used_percentage", nl:"7-day rate-limit usage",
- desc:"The weekly usage window — the one that sneaks up on heavy users by Thursday.",
- color:s=>pctCol(s.rl7), text:s=>"7d "+Math.round(s.rl7)+"%"},
+ src:"rate_limits.seven_day: used_percentage · resets_at", nl:"7-day rate-limit usage with time until it resets",
+ desc:"The weekly window with ⟳ its reset countdown — the one that sneaks up on heavy users by Thursday.",
+ color:s=>pctCol(s.rl7), text:s=>"7d "+Math.round(s.rl7)+"% ⟳"+fmtReset(s.rl7r)},
 
 /* — git — */
 {id:"branch", cat:"Git", name:"Branch", badge:"shell", color:"grn",
@@ -832,7 +836,8 @@ $("liveBtn").onclick=e=>{
 };
 $("shuffleBtn").onclick=()=>{
   Object.assign(sim,{ctx:ri(2,96),cost:ri(2,1400)/100,dur:ri(2,300),la:ri(0,1800),lr:ri(0,1100),
-    rl5:ri(0,95),rl7:ri(0,95),dirty:ri(0,9),ahead:ri(0,6),behind:ri(0,4),stash:ri(0,3),
+    rl5:ri(0,95),rl7:ri(0,95),rl5r:ri(4,295),rl7r:ri(45,10000),
+    dirty:ri(0,9),ahead:ri(0,6),behind:ri(0,4),stash:ri(0,3),
     age:ri(1,58),battery:ri(8,100),checksPass:ri(0,3),checksTotal:3,issues:ri(0,12),
     temp:ri(-4,36),streak:ri(0,21),pomo:ri(1,24)+":"+String(ri(0,59)).padStart(2,"0"),
     vim:["","NORMAL","INSERT","VISUAL"][ri(0,3)],fast:Math.random()<.3,think:Math.random()<.75,
